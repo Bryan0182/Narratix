@@ -13,10 +13,15 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { topic, tone, language, targetAudience, wordCount } = await request.json()
-
     if (!topic) return NextResponse.json({ error: "Topic is required" }, { status: 400 })
 
-    const prompt = `Write a professional blog post about: "${topic}"
+    const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        messages: [
+            {
+                role: "user",
+                content: `Write a professional blog post about: "${topic}"
 
 Requirements:
 - Tone: ${tone || "professional"}
@@ -24,27 +29,25 @@ Requirements:
 - Target audience: ${targetAudience || "general"}
 - Word count: approximately ${wordCount || 800} words
 
-Return ONLY a JSON object with this exact structure, no markdown, no backticks:
+Return ONLY a valid JSON object with no markdown, no backticks, no explanation. Just the raw JSON:
 {
   "title": "Blog post title",
   "content": "Full blog post content in markdown format",
   "summary": "2-3 sentence summary",
-  "seoTitle": "SEO optimized title (max 60 chars)",
-  "seoDesc": "Meta description (max 160 chars)",
+  "seoTitle": "SEO optimized title max 60 chars",
+  "seoDesc": "Meta description max 160 chars",
   "seoScore": 85
-}`
-
-    const message = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4000,
-        messages: [{ role: "user", content: prompt }],
+}`,
+            },
+        ],
     })
 
     const text = message.content[0].type === "text" ? message.content[0].text : ""
 
     let parsed
     try {
-        parsed = JSON.parse(text)
+        const clean = text.replace(/```json|```/g, "").trim()
+        parsed = JSON.parse(clean)
     } catch {
         return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 })
     }
@@ -56,7 +59,7 @@ Return ONLY a JSON object with this exact structure, no markdown, no backticks:
             summary: parsed.summary,
             seoTitle: parsed.seoTitle,
             seoDesc: parsed.seoDesc,
-            seoScore: parsed.seoScore,
+            seoScore: parsed.seoScore ?? 0,
             status: "draft",
             authorId: session.user.id,
         },
