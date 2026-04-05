@@ -1,0 +1,21 @@
+-- CreateTable
+CREATE TABLE "Post" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "summary" TEXT,
+    "seoTitle" TEXT,
+    "seoDesc" TEXT,
+    "seoScore" INTEGER,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "scheduledAt" TIMESTAMP(3),
+    "publishedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "authorId" TEXT NOT NULL,
+
+    CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
+);
+
+-- AddForeignKey
+ALTER TABLE "Post" ADD CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

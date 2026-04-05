@@ -17,6 +17,7 @@ model User {
 
   sessions      Session[]
   accounts      Account[]
+  posts         Post[]
 }
 
 model Session {
@@ -57,4 +58,22 @@ model Verification {
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  summary     String?
+  seoTitle    String?
+  seoDesc     String?
+  seoScore    Int?
+  status      String   @default("draft")
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 }

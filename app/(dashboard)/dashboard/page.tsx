@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 
 // Status chip component
 function StatusChip({ status }: { status: string }) {
@@ -198,7 +199,7 @@ export default async function DashboardPage() {
             {/* Bottom row */}
             <div className="grid grid-cols-2 gap-6">
 
-                {/* Quick Actions */}
+                {/* Quick Actions*/}
                 <div
                     className="rounded-2xl border p-6 flex flex-col gap-4"
                     style={{
@@ -209,29 +210,67 @@ export default async function DashboardPage() {
                 >
                     <h3 className="text-base" style={{ color: "#eee5e9" }}>Quick Actions</h3>
                     <div className="grid grid-cols-2 gap-3">
-                        {[
-                            { label: "New Draft", gradient: "linear-gradient(to bottom, #00f3ff, #92dce5)" },
-                            { label: "AI Generate", gradient: "linear-gradient(135deg, #ad46ff 0%, #f6339a 100%)" },
-                            { label: "Import Content", gradient: "linear-gradient(135deg, #00c950 0%, #00bc7d 100%)" },
-                            { label: "Templates", gradient: "linear-gradient(135deg, #ff6900 0%, #fe9a00 100%)" },
-                        ].map((action) => (
-                            <button
-                                key={action.label}
-                                className="flex flex-col items-center gap-2 p-4 rounded-xl border transition-opacity hover:opacity-80"
-                                style={{
-                                    backgroundColor: "rgba(56,61,59,0.5)",
-                                    borderColor: "rgba(124,124,124,0.3)",
-                                }}
+
+                        {/* New Draft */}
+                        <Link href="/drafts/new"
+                              className="flex flex-col items-center gap-2 pt-[17px] px-[17px] pb-px rounded-xl border transition-opacity hover:opacity-80"
+                              style={{ backgroundColor: "rgba(56,61,59,0.5)", borderColor: "rgba(124,124,124,0.3)" }}
+                        >
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center"
+                                 style={{ background: "linear-gradient(to bottom, #00f3ff, #92dce5)" }}
                             >
-                                <div
-                                    className="w-11 h-11 rounded-xl"
-                                    style={{ background: action.gradient }}
-                                />
-                                <span className="text-sm" style={{ color: "#eee5e9" }}>
-                  {action.label}
-                </span>
-                            </button>
-                        ))}
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                    <path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z"/>
+                                </svg>
+                            </div>
+                            <span className="text-sm pb-2" style={{ color: "#eee5e9" }}>New Draft</span>
+                        </Link>
+
+                        {/* AI Generate */}
+                        <Link href="/generate"
+                              className="flex flex-col items-center gap-2 pt-[17px] px-[17px] pb-px rounded-xl border transition-opacity hover:opacity-80"
+                              style={{ backgroundColor: "rgba(56,61,59,0.5)", borderColor: "rgba(124,124,124,0.3)" }}
+                        >
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center"
+                                 style={{ background: "linear-gradient(135deg, rgb(173,70,255) 0%, rgb(246,51,154) 100%)" }}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                    <path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"/>
+                                </svg>
+                            </div>
+                            <span className="text-sm pb-2" style={{ color: "#eee5e9" }}>AI Generate</span>
+                        </Link>
+
+                        {/* Import Content */}
+                        <button
+                            className="flex flex-col items-center gap-2 pt-[17px] px-[17px] pb-px rounded-xl border transition-opacity hover:opacity-80"
+                            style={{ backgroundColor: "rgba(56,61,59,0.5)", borderColor: "rgba(124,124,124,0.3)" }}
+                        >
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center"
+                                 style={{ background: "linear-gradient(135deg, rgb(0,201,80) 0%, rgb(0,188,125) 100%)" }}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                    <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
+                                </svg>
+                            </div>
+                            <span className="text-sm pb-2" style={{ color: "#eee5e9" }}>Import Content</span>
+                        </button>
+
+                        {/* Templates */}
+                        <button
+                            className="flex flex-col items-center gap-2 pt-[17px] px-[17px] pb-px rounded-xl border transition-opacity hover:opacity-80"
+                            style={{ backgroundColor: "rgba(56,61,59,0.5)", borderColor: "rgba(124,124,124,0.3)" }}
+                        >
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center"
+                                 style={{ background: "linear-gradient(135deg, rgb(255,105,0) 0%, rgb(254,154,0) 100%)" }}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/>
+                                </svg>
+                            </div>
+                            <span className="text-sm pb-2" style={{ color: "#eee5e9" }}>Templates</span>
+                        </button>
+
                     </div>
                 </div>
 
