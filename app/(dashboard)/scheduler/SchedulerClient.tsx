@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -27,10 +28,16 @@ function formatTime(iso: string) {
     return new Date(iso).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })
 }
 
-export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
+export default function SchedulerClient({ posts: initialPosts }: { posts: ScheduledPost[] }) {
+    const router = useRouter()
     const today = new Date()
+    const [posts, setPosts] = useState(initialPosts)
     const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
-    const [selectedPost, setSelectedPost] = useState<ScheduledPost | null>(posts[0] ?? null)
+    const [selectedPost, setSelectedPost] = useState<ScheduledPost | null>(initialPosts[0] ?? null)
+    const [showReschedule, setShowReschedule] = useState(false)
+    const [rescheduleDate, setRescheduleDate] = useState("")
+    const [rescheduleTime, setRescheduleTime] = useState("09:00")
+    const [loading, setLoading] = useState<string | null>(null)
 
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
@@ -61,6 +68,58 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
             new Date(selectedPost.scheduledAt).getFullYear() === year
             : false
 
+    const handleCancelSchedule = async () => {
+        if (!selectedPost) return
+        setLoading("cancel")
+
+        const res = await fetch(`/api/posts/${selectedPost.id}/schedule`, { method: "DELETE" })
+
+        if (res.ok) {
+            const updated = posts.filter(p => p.id !== selectedPost.id)
+            setPosts(updated)
+            setSelectedPost(updated[0] ?? null)
+            router.refresh()
+        }
+
+        setLoading(null)
+    }
+
+    const handleReschedule = async () => {
+        if (!selectedPost || !rescheduleDate || !rescheduleTime) return
+        setLoading("reschedule")
+
+        const scheduledAt = new Date(`${rescheduleDate}T${rescheduleTime}:00`).toISOString()
+
+        const res = await fetch(`/api/posts/${selectedPost.id}/schedule`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ scheduledAt }),
+        })
+
+        if (res.ok) {
+            const updatedPost = { ...selectedPost, scheduledAt }
+            const updated = posts.map(p => p.id === selectedPost.id ? updatedPost : p)
+            setPosts(updated)
+            setSelectedPost(updatedPost)
+            setShowReschedule(false)
+            router.refresh()
+        }
+
+        setLoading(null)
+    }
+
+    const inputStyle = {
+        backgroundColor: "rgba(56,61,59,0.5)",
+        border: "1px solid rgba(124,124,124,0.3)",
+        color: "#eee5e9",
+        borderRadius: "12px",
+        padding: "0 12px",
+        height: "40px",
+        outline: "none",
+        fontSize: "14px",
+        colorScheme: "dark" as const,
+    }
+
     return (
         <div className="p-8 flex gap-6 h-full">
 
@@ -74,7 +133,6 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
                         boxShadow: "0px 8px 24px 0px rgba(0,0,0,0.25)",
                     }}
                 >
-                    {/* Header */}
                     <div className="flex items-center justify-between">
                         <h2 className="text-xl" style={{ color: "#eee5e9" }}>
                             {MONTHS[month]} {year}
@@ -83,23 +141,19 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
                             <button onClick={prevMonth} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors" style={{ color: "#eee5e9" }}>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" /></svg>
                             </button>
-                            <button onClick={goToToday} className="px-3 h-7 rounded-xl text-sm hover:bg-white/10 transition-colors" style={{ color: "#00f3ff" }}>
-                                Today
-                            </button>
+                            <button onClick={goToToday} className="px-3 h-7 rounded-xl text-sm hover:bg-white/10 transition-colors" style={{ color: "#00f3ff" }}>Today</button>
                             <button onClick={nextMonth} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors" style={{ color: "#eee5e9" }}>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" /></svg>
                             </button>
                         </div>
                     </div>
 
-                    {/* Day headers */}
                     <div className="grid grid-cols-7 gap-2">
                         {DAYS.map(d => (
                             <div key={d} className="text-center text-xs uppercase tracking-wider py-1" style={{ color: "#7c7c7c" }}>{d}</div>
                         ))}
                     </div>
 
-                    {/* Grid */}
                     <div className="grid grid-cols-7 gap-2">
                         {cells.map((day, i) => {
                             if (!day) return <div key={`empty-${i}`} />
@@ -124,7 +178,7 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
                                     {dayPosts.map(post => (
                                         <button
                                             key={post.id}
-                                            onClick={() => setSelectedPost(post)}
+                                            onClick={() => { setSelectedPost(post); setShowReschedule(false) }}
                                             className="w-full text-left p-1.5 rounded text-xs leading-tight transition-colors hover:opacity-80"
                                             style={{
                                                 backgroundColor: selectedPost?.id === post.id ? "rgba(0,243,255,0.15)" : "rgba(56,61,59,0.8)",
@@ -141,10 +195,9 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
                         })}
                     </div>
 
-                    {/* Leeg state */}
                     {posts.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-8 gap-3">
-                            <p className="text-sm" style={{ color: "#7c7c7c" }}>Geen ingeplande artikelen deze maand.</p>
+                            <p className="text-sm" style={{ color: "#7c7c7c" }}>Geen ingeplande artikelen.</p>
                             <Link href="/drafts" className="text-sm hover:opacity-80 transition-opacity" style={{ color: "#00f3ff" }}>
                                 Plan een artikel in via Drafts →
                             </Link>
@@ -164,7 +217,6 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
             >
                 {selectedPost ? (
                     <>
-                        {/* Header */}
                         <div className="flex items-center justify-between p-6 pb-4">
                             <h3 className="text-base" style={{ color: "#eee5e9" }}>Scheduled Post Details</h3>
                             <span className="text-xs px-3 py-1 rounded-lg" style={{ backgroundColor: "rgba(0,243,255,0.2)", color: "#00f3ff", border: "1px solid rgba(0,243,255,0.3)" }}>
@@ -172,15 +224,12 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
               </span>
                         </div>
 
-                        {/* Content */}
                         <div className="flex-1 flex flex-col gap-5 px-6 overflow-y-auto">
-
                             <div className="flex flex-col gap-2">
                                 <p className="text-xs uppercase tracking-wider" style={{ color: "#7c7c7c" }}>Title</p>
                                 <p className="text-base leading-6" style={{ color: "#eee5e9" }}>{selectedPost.title}</p>
                             </div>
 
-                            {/* Date & Time */}
                             <div className="flex gap-3">
                                 <div className="flex-1 flex flex-col gap-1 p-3 rounded-xl border" style={{ backgroundColor: "rgba(56,61,59,0.5)", borderColor: "rgba(124,124,124,0.3)" }}>
                                     <div className="flex items-center gap-2">
@@ -200,7 +249,6 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
                                 </div>
                             </div>
 
-                            {/* Author */}
                             <div className="flex items-center gap-3 p-3 rounded-xl border" style={{ backgroundColor: "rgba(56,61,59,0.5)", borderColor: "rgba(124,124,124,0.3)" }}>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="#7c7c7c"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
                                 <div>
@@ -209,7 +257,6 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
                                 </div>
                             </div>
 
-                            {/* Stats */}
                             <div className="flex gap-3">
                                 <div className="flex-1 flex flex-col gap-1 p-3 rounded-xl border" style={{ backgroundColor: "rgba(56,61,59,0.5)", borderColor: "rgba(124,124,124,0.3)" }}>
                                     <p className="text-xs" style={{ color: "#7c7c7c" }}>Word Count</p>
@@ -220,16 +267,65 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
                                     <p className="text-base" style={{ color: "#00f3ff" }}>{selectedPost.seoScore ? `${selectedPost.seoScore}/100` : "—"}</p>
                                 </div>
                             </div>
+
+                            {/* Reschedule form */}
+                            {showReschedule && (
+                                <div
+                                    className="flex flex-col gap-3 p-4 rounded-xl border"
+                                    style={{ backgroundColor: "rgba(56,61,59,0.3)", borderColor: "rgba(0,243,255,0.2)" }}
+                                >
+                                    <p className="text-xs font-medium" style={{ color: "#92dce5" }}>Nieuwe datum & tijd</p>
+                                    <div className="flex flex-col gap-2">
+                                        <input
+                                            type="date"
+                                            value={rescheduleDate}
+                                            onChange={e => setRescheduleDate(e.target.value)}
+                                            min={new Date().toISOString().split("T")[0]}
+                                            style={{ ...inputStyle, width: "100%" }}
+                                        />
+                                        <input
+                                            type="time"
+                                            value={rescheduleTime}
+                                            onChange={e => setRescheduleTime(e.target.value)}
+                                            style={{ ...inputStyle, width: "100%" }}
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleReschedule}
+                                            disabled={loading === "reschedule" || !rescheduleDate}
+                                            className="flex-1 h-9 rounded-xl text-xs font-medium transition-opacity hover:opacity-90"
+                                            style={{ backgroundColor: "#00f3ff", color: "#383d3b" }}
+                                        >
+                                            {loading === "reschedule" ? "Opslaan..." : "Bevestigen"}
+                                        </button>
+                                        <button
+                                            onClick={() => setShowReschedule(false)}
+                                            className="flex-1 h-9 rounded-xl text-xs transition-opacity hover:opacity-80"
+                                            style={{ border: "1px solid rgba(124,124,124,0.3)", color: "#7c7c7c" }}
+                                        >
+                                            Annuleren
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Actions */}
                         <div className="flex flex-col gap-3 p-6 border-t" style={{ borderColor: "rgba(124,124,124,0.3)" }}>
                             <div className="flex gap-3">
-                                <button className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl text-sm transition-opacity hover:opacity-80" style={{ border: "1px solid #92dce5", color: "#92dce5" }}>
+                                <button
+                                    onClick={() => { setShowReschedule(!showReschedule); setRescheduleDate(""); setRescheduleTime("09:00") }}
+                                    className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl text-sm transition-opacity hover:opacity-80"
+                                    style={{ border: "1px solid #92dce5", color: "#92dce5" }}
+                                >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z" /></svg>
                                     Reschedule
                                 </button>
-                                <Link href={`/drafts/${selectedPost.id}`} className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl text-sm transition-opacity hover:opacity-80" style={{ border: "1px solid #92dce5", color: "#92dce5" }}>
+                                <Link
+                                    href={`/drafts/${selectedPost.id}`}
+                                    className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl text-sm transition-opacity hover:opacity-80"
+                                    style={{ border: "1px solid #92dce5", color: "#92dce5" }}
+                                >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg>
                                     Edit Post
                                 </Link>
@@ -243,9 +339,14 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
                                 Publish Now
                             </button>
 
-                            <button className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm transition-opacity hover:opacity-80" style={{ color: "#7c7c7c" }}>
+                            <button
+                                onClick={handleCancelSchedule}
+                                disabled={loading === "cancel"}
+                                className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm transition-opacity hover:opacity-80"
+                                style={{ color: loading === "cancel" ? "#7c7c7c" : "#ff3b30" }}
+                            >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
-                                Cancel Schedule
+                                {loading === "cancel" ? "Annuleren..." : "Cancel Schedule"}
                             </button>
 
                             <div className="border-t pt-3" style={{ borderColor: "rgba(124,124,124,0.3)" }}>
@@ -265,7 +366,7 @@ export default function SchedulerClient({ posts }: { posts: ScheduledPost[] }) {
                             <path d="M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V8h14z" />
                         </svg>
                         <p className="text-sm text-center" style={{ color: "#7c7c7c" }}>
-                            Nog geen ingeplande artikelen. Plan een artikel in via de Drafts pagina.
+                            Nog geen ingeplande artikelen.
                         </p>
                         <Link href="/drafts" className="text-sm hover:opacity-80 transition-opacity" style={{ color: "#00f3ff" }}>
                             Naar Drafts →

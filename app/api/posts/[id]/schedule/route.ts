@@ -19,10 +19,27 @@ export async function POST(
 
     const post = await prisma.post.updateMany({
         where: { id, organizationId: org.id },
-        data: {
-            status: "scheduled",
-            scheduledAt: new Date(scheduledAt),
-        },
+        data: { status: "scheduled", scheduledAt: new Date(scheduledAt) },
+    })
+
+    if (post.count === 0) return NextResponse.json({ error: "Post not found" }, { status: 404 })
+
+    return NextResponse.json({ success: true })
+}
+
+export async function DELETE(
+    _request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const session = await auth.api.getSession({ headers: await headers() })
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const org = await getOrCreateOrganization(session.user.id, session.user.name ?? "User")
+    const { id } = await params
+
+    const post = await prisma.post.updateMany({
+        where: { id, organizationId: org.id },
+        data: { status: "draft", scheduledAt: null },
     })
 
     if (post.count === 0) return NextResponse.json({ error: "Post not found" }, { status: 404 })
