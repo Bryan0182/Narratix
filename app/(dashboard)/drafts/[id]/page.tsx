@@ -1,8 +1,10 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getOrCreateOrganization } from "@/lib/organization"
 import { headers } from "next/headers"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
+import ScheduleButton from "./ScheduleButton"
 
 function StatusChip({ status }: { status: string }) {
     const styles: Record<string, { bg: string; color: string; border: string }> = {
@@ -44,9 +46,11 @@ export default async function DraftDetailPage({
     const session = await auth.api.getSession({ headers: await headers() })
     if (!session) redirect("/login")
 
+    const org = await getOrCreateOrganization(session.user.id, session.user.name ?? "User")
     const { id } = await params
+
     const post = await prisma.post.findUnique({
-        where: { id, authorId: session.user.id },
+        where: { id, organizationId: org.id },
     })
 
     if (!post) notFound()
@@ -58,7 +62,6 @@ export default async function DraftDetailPage({
     return (
         <div className="p-8 max-w-4xl">
 
-            {/* Terug naar drafts */}
             <Link
                 href="/drafts"
                 className="inline-flex items-center gap-2 text-sm mb-6 hover:opacity-80 transition-opacity"
@@ -85,9 +88,7 @@ export default async function DraftDetailPage({
                 >
                     <div>
                         <p className="text-base mb-1" style={{ color: "#eee5e9" }}>Article Preview</p>
-                        <p className="text-sm" style={{ color: "#7c7c7c" }}>
-                            By {session.user.name}
-                        </p>
+                        <p className="text-sm" style={{ color: "#7c7c7c" }}>By {session.user.name}</p>
                     </div>
                     <StatusChip status={post.status} />
                 </div>
@@ -126,17 +127,15 @@ export default async function DraftDetailPage({
                                 </svg>
                             </Link>
                         </div>
-                        <div className="flex flex-col gap-3">
-                            <p className="text-base leading-6" style={{ color: "rgba(238,229,233,0.7)" }}>
-                                {contentPreview}
-                                {post.content.length > 600 && "..."}
+                        <p className="text-base leading-6" style={{ color: "rgba(238,229,233,0.7)" }}>
+                            {contentPreview}
+                            {post.content.length > 600 && "..."}
+                        </p>
+                        {post.content.length > 600 && (
+                            <p className="text-base italic" style={{ color: "#7c7c7c" }}>
+                                ... (Click "View Full Article" to read more)
                             </p>
-                            {post.content.length > 600 && (
-                                <p className="text-base italic" style={{ color: "#7c7c7c" }}>
-                                    ... (Click "View Full Article" to read more)
-                                </p>
-                            )}
-                        </div>
+                        )}
                     </div>
 
                     {/* SEO Metadata */}
@@ -175,7 +174,6 @@ export default async function DraftDetailPage({
                     style={{ borderColor: "rgba(124,124,124,0.3)" }}
                 >
                     <div className="flex gap-3">
-                        {/* Approve */}
                         <button
                             className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl text-sm font-medium transition-opacity hover:opacity-90"
                             style={{
@@ -190,7 +188,6 @@ export default async function DraftDetailPage({
                             Approve
                         </button>
 
-                        {/* Request Changes */}
                         <button
                             className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl text-sm transition-opacity hover:opacity-80"
                             style={{
@@ -206,16 +203,8 @@ export default async function DraftDetailPage({
                         </button>
                     </div>
 
-                    {/* AI Rewrite */}
-                    <button
-                        className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-sm transition-opacity hover:opacity-80"
-                        style={{ backgroundColor: "transparent", color: "#00f3ff" }}
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z" />
-                        </svg>
-                        AI Rewrite
-                    </button>
+                    {/* ScheduleButton — client component voor de datetime input */}
+                    <ScheduleButton postId={post.id} />
                 </div>
             </div>
         </div>
