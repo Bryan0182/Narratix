@@ -1,16 +1,17 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getOrCreateOrganization } from "@/lib/organization"
 import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 import Anthropic from "@anthropic-ai/sdk"
 
-const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-})
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(request: NextRequest) {
     const session = await auth.api.getSession({ headers: await headers() })
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const org = await getOrCreateOrganization(session.user.id, session.user.name ?? "User")
 
     const { topic, tone, language, targetAudience, wordCount } = await request.json()
     if (!topic) return NextResponse.json({ error: "Topic is required" }, { status: 400 })
@@ -29,7 +30,7 @@ Requirements:
 - Target audience: ${targetAudience || "general"}
 - Word count: approximately ${wordCount || 800} words
 
-Return ONLY a valid JSON object with no markdown, no backticks, no explanation. Just the raw JSON:
+Return ONLY a valid JSON object with no markdown, no backticks:
 {
   "title": "Blog post title",
   "content": "Full blog post content in markdown format",
@@ -62,6 +63,7 @@ Return ONLY a valid JSON object with no markdown, no backticks, no explanation. 
             seoScore: parsed.seoScore ?? 0,
             status: "draft",
             authorId: session.user.id,
+            organizationId: org.id,
         },
     })
 

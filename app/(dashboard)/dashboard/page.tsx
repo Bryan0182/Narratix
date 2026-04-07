@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import { getOrCreateOrganization } from "@/lib/organization"
 
 function StatusChip({ status }: { status: string }) {
     const styles: Record<string, { bg: string; color: string; border: string }> = {
@@ -87,20 +88,20 @@ export default async function DashboardPage() {
     const session = await auth.api.getSession({ headers: await headers() })
     if (!session) redirect("/login")
 
-    const userId = session.user.id
+    const org = await getOrCreateOrganization(session.user.id, session.user.name ?? "User")
+    const orgId = org.id
 
-    // Alle data ophalen in parallel
     const [drafts, inReview, scheduled, published, postsWithSeo, recentPosts] = await Promise.all([
-        prisma.post.count({ where: { authorId: userId, status: "draft" } }),
-        prisma.post.count({ where: { authorId: userId, status: "in review" } }),
-        prisma.post.count({ where: { authorId: userId, status: "scheduled" } }),
-        prisma.post.count({ where: { authorId: userId, status: "published" } }),
+        prisma.post.count({ where: { organizationId: orgId, status: "draft" } }),
+        prisma.post.count({ where: { organizationId: orgId, status: "in review" } }),
+        prisma.post.count({ where: { organizationId: orgId, status: "scheduled" } }),
+        prisma.post.count({ where: { organizationId: orgId, status: "published" } }),
         prisma.post.findMany({
-            where: { authorId: userId, seoScore: { not: null } },
+            where: { organizationId: orgId, seoScore: { not: null } },
             select: { seoScore: true },
         }),
         prisma.post.findMany({
-            where: { authorId: userId },
+            where: { organizationId: orgId },
             orderBy: { updatedAt: "desc" },
             take: 5,
             select: {

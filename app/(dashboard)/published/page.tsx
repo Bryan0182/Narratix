@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import { getOrCreateOrganization } from "@/lib/organization"
 
 function SeoScore({ score }: { score: number | null }) {
     if (!score) return <span style={{ color: "#7c7c7c" }}>—</span>
@@ -14,17 +15,20 @@ export default async function PublishedPage() {
     const session = await auth.api.getSession({ headers: await headers() })
     if (!session) redirect("/login")
 
+    const org = await getOrCreateOrganization(session.user.id, session.user.name ?? "User")
+    const orgId = org.id
+
     const userId = session.user.id
 
     const [posts, totalPublished, postsWithSeo] = await Promise.all([
         prisma.post.findMany({
-            where: { authorId: userId, status: "published" },
+            where: { organizationId: org.id, status: "published" },
             orderBy: { publishedAt: "desc" },
             include: { author: { select: { name: true } } },
         }),
-        prisma.post.count({ where: { authorId: userId, status: "published" } }),
+        prisma.post.count({ where: { organizationId: org.id, status: "published" } }),
         prisma.post.findMany({
-            where: { authorId: userId, status: "published", seoScore: { not: null } },
+            where: { organizationId: org.id, status: "published", seoScore: { not: null } },
             select: { seoScore: true, author: { select: { name: true } } },
         }),
     ])

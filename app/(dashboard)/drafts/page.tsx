@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import { getOrCreateOrganization } from "@/lib/organization"
 
 function StatusChip({ status }: { status: string }) {
     const styles: Record<string, { bg: string; color: string; border: string }> = {
@@ -34,8 +35,11 @@ export default async function DraftsPage() {
     const session = await auth.api.getSession({ headers: await headers() })
     if (!session) redirect("/login")
 
+    const org = await getOrCreateOrganization(session.user.id, session.user.name ?? "User")
+    const orgId = org.id
+
     const posts = await prisma.post.findMany({
-        where: { authorId: session.user.id },
+        where: { organizationId: org.id },
         orderBy: { updatedAt: "desc" },
     })
 

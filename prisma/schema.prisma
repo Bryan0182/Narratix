@@ -18,6 +18,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   posts         Post[]
+  memberships   OrganizationMember[]
 }
 
 model Session {
@@ -76,4 +77,46 @@ model Post {
 
   authorId    String
   author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     OrganizationMember[]
+  posts       Post[]
+  connections Connection[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  role           String       @default("member") // owner, admin, member
+  createdAt      DateTime     @default(now())
+
+  userId         String
+  organizationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+model Connection {
+  id             String       @id @default(cuid())
+  name           String
+  type           String       // wordpress, custom_api, ghost, webflow
+  url            String
+  apiKey         String?
+  username       String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
